@@ -24,19 +24,22 @@ func main() {
 	logger := adapters.InitLogger()
 	level.Info(logger).Log("msg", "service started")
 	defer level.Info(logger).Log("msg", "service ended")
+	ctx := context.Background()
 
 	var db *mgo.Database
-	adapters.SetConnection(logger)
+	adapters.SetConnection(logger, ctx)
 	db = adapters.GetConnection()
 
 	flag.Parse()
-	ctx := context.Background()
 
 	//init a service
 	var srv tasks.Service
 	{
-		repository := view.NewRepo(db, logger)
-		srv = view.NewService(repository, logger)
+		mongodbrepo := view.NewMongoDbRepo(db, logger)
+		srv = view.NewService(mongodbrepo, logger)
+		go func() {
+			view.PollFromKafka(srv, ctx, logger)
+		}()
 	}
 
 	errs := make(chan error)

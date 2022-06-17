@@ -1,6 +1,7 @@
 package adapters
 
 import (
+	"context"
 	"os"
 
 	"github.com/go-kit/log"
@@ -16,7 +17,7 @@ func GetConnection() *mgo.Database {
 	return db
 }
 
-func SetConnection(logger log.Logger) {
+func SetConnection(logger log.Logger, ctx context.Context) {
 	// to connect with DB
 	sess, err := mgo.Dial(view.HostName)
 	if err != nil {
@@ -25,4 +26,5 @@ func SetConnection(logger log.Logger) {
 	}
 	sess.SetMode(mgo.Monotonic, true)
 	db = sess.DB(view.DbName)
+
 }

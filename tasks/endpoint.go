@@ -25,7 +25,7 @@ func MakeEndpoints(s Service) Endpoints {
 func makeCreateTodoEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(CreateTodoRequest)
-		ok, err := s.CreateTodo(ctx, req.Title)
+		ok, err := s.CreateTodoToKafka(ctx, req.Title)
 		return CreateTodoResponse{Ok: ok}, err
 	}
 }

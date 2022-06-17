@@ -7,6 +7,7 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/gofrs/uuid"
+
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/kjain0073/go-Todo/models"
@@ -14,19 +15,19 @@ import (
 )
 
 type service struct {
-	repository Repository
-	logger     log.Logger
+	mongoDbRepo MongoDbRepository
+	logger      log.Logger
 }
 
-func NewService(rep Repository, logger log.Logger) tasks.Service {
+func NewService(mongodbrepo MongoDbRepository, logger log.Logger) tasks.Service {
 	return &service{
-		repository: rep,
-		logger:     logger,
+		mongoDbRepo: mongodbrepo,
+		logger:      logger,
 	}
 }
 
-func (s service) CreateTodo(ctx context.Context, title string) (string, error) {
-	logger := log.With(s.logger, "method", "CreateTodo")
+func (s service) CreateTodoToKafka(ctx context.Context, title string) (string, error) {
+	logger := log.With(s.logger, "method", "CreateTodoToKafka")
 
 	uuid, _ := uuid.NewV4()
 	id := uuid.String()
@@ -37,7 +38,7 @@ func (s service) CreateTodo(ctx context.Context, title string) (string, error) {
 		CreatedAt: time.Now(),
 	}
 
-	if err := s.repository.CreateTodo(ctx, todo); err != nil {
+	if err := SaveToKafka(ctx, todo); err != nil {
 		level.Error(logger).Log("err", err)
 		return "", err
 	}
@@ -47,10 +48,21 @@ func (s service) CreateTodo(ctx context.Context, title string) (string, error) {
 	return "Success", nil
 }
 
+func (s service) CreateTodoToRepo(ctx context.Context, todo models.TodoEntity) (string, error) {
+	logger := log.With(s.logger, "method", "CreateTodoToRepo")
+
+	if err := s.mongoDbRepo.CreateTodo(ctx, todo); err != nil {
+		level.Error(logger).Log("err", err)
+		return "", err
+	}
+
+	return "Success", nil
+}
+
 func (s service) GetTodos(ctx context.Context) ([]models.TodoDto, error) {
 	logger := log.With(s.logger, "method", "GetTodo")
 
-	todos, err := s.repository.GetTodos(ctx)
+	todos, err := s.mongoDbRepo.GetTodos(ctx)
 
 	if err != nil {
 		level.Error(logger).Log("err", err)
@@ -78,7 +90,7 @@ func (s service) GetTodos(ctx context.Context) ([]models.TodoDto, error) {
 func (s service) DeleteTodo(ctx context.Context, id string) (string, error) {
 	logger := log.With(s.logger, "method", "DeleteTodo")
 
-	if err := s.repository.DeleteTodo(ctx, id); err != nil {
+	if err := s.mongoDbRepo.DeleteTodo(ctx, id); err != nil {
 		level.Error(logger).Log("err", err)
 		return "", err
 	}
@@ -91,7 +103,7 @@ func (s service) DeleteTodo(ctx context.Context, id string) (string, error) {
 func (s service) UpdateTodo(ctx context.Context, id string, title string, completed bool) (string, error) {
 	logger := log.With(s.logger, "method", "UpdateTodo")
 
-	if err := s.repository.UpdateTodo(ctx, id, title, completed); err != nil {
+	if err := s.mongoDbRepo.UpdateTodo(ctx, id, title, completed); err != nil {
 		level.Error(logger).Log("err", err)
 		return "", err
 	}
